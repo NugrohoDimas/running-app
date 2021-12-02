@@ -9,10 +9,13 @@ import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.PolylineOptions
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import its.nugrohodimas.runningapp.R
+import its.nugrohodimas.runningapp.db.Run
 import its.nugrohodimas.runningapp.helper.Constants.ACTION_PAUSE_SERVICE
 import its.nugrohodimas.runningapp.helper.Constants.ACTION_START_OR_RESUME_SERVICE
 import its.nugrohodimas.runningapp.helper.Constants.ACTION_STOP_SERVICE
@@ -24,6 +27,9 @@ import its.nugrohodimas.runningapp.service.Polyline
 import its.nugrohodimas.runningapp.service.TrackingService
 import its.nugrohodimas.runningapp.ui.viewmodel.MainViewModel
 import kotlinx.android.synthetic.main.fragment_tracking.*
+import timber.log.Timber
+import java.util.*
+import kotlin.math.round
 
 @AndroidEntryPoint
 class TrackingFragment : Fragment(R.layout.fragment_tracking) {
@@ -34,6 +40,7 @@ class TrackingFragment : Fragment(R.layout.fragment_tracking) {
     private var pathPoints = mutableListOf<Polyline>()
     private var curTimeInMillis = 0L
     private var menu: Menu? = null
+    private var weight = 55f
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -50,6 +57,12 @@ class TrackingFragment : Fragment(R.layout.fragment_tracking) {
         btnToggleRun.setOnClickListener {
             toggleRun()
         }
+
+        btnFinishRun.setOnClickListener {
+            zoomToWholeTrack()
+            endRunAndSaveToDatabase()
+        }
+
         mapView.getMapAsync {
             map = it
             addAllPolylines()
@@ -64,6 +77,7 @@ class TrackingFragment : Fragment(R.layout.fragment_tracking) {
         })
 
         TrackingService.pathPoints.observe(viewLifecycleOwner, Observer {
+            Timber.d("Testing saja : $it")
             pathPoints = it
             addLatestPolyline()
             moveCameraToUser()
@@ -138,7 +152,7 @@ class TrackingFragment : Fragment(R.layout.fragment_tracking) {
     }
 
     private fun moveCameraToUser() {
-        if (pathPoints.isEmpty() && pathPoints.last().isNotEmpty()) {
+        if (pathPoints.isNotEmpty() && pathPoints.last().isNotEmpty()) {
             map?.animateCamera(
                 CameraUpdateFactory.newLatLngZoom(
                     pathPoints.last().last(),
@@ -168,6 +182,53 @@ class TrackingFragment : Fragment(R.layout.fragment_tracking) {
                 .add(preLastLatLng)
                 .add(lastLatLng)
             map?.addPolyline(polylineOptions)
+        }
+    }
+
+    private fun zoomToWholeTrack() {
+        val bounds = LatLngBounds.Builder()
+        for (polyline in pathPoints) {
+            for (pos in polyline) {
+                bounds.include(pos)
+            }
+        }
+
+        map?.moveCamera(
+            CameraUpdateFactory.newLatLngBounds(
+                bounds.build(),
+                mapView.width,
+                mapView.height,
+                (mapView.height * 0.05f).toInt()
+            )
+        )
+    }
+
+    private fun endRunAndSaveToDatabase() {
+        map?.snapshot {
+            var distanceInMeter = 0
+            for (polyline in pathPoints) {
+                distanceInMeter += TrackingUtility.calculateLength(polyline).toInt()
+            }
+
+            val averageSpeed =
+                round((distanceInMeter / 1000f) / (curTimeInMillis / 1000f / 60 / 60) * 10) / 10f
+            val dateTimepstamp = Calendar.getInstance().timeInMillis
+            val caloriesBurned = ((distanceInMeter / 1000f) * weight).toInt()
+            val run = Run(
+                it,
+                dateTimepstamp,
+                averageSpeed,
+                distanceInMeter,
+                dateTimepstamp,
+                caloriesBurned
+            )
+            mainViewModel.insertRun(run)
+            Snackbar.make(
+                requireActivity().findViewById(R.id.rootView),
+                "Run saved successfully",
+                Snackbar.LENGTH_LONG
+            ).show()
+            stopRun()
         }
     }
 
