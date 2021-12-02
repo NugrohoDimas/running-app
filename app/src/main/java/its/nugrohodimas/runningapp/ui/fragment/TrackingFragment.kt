@@ -219,7 +219,7 @@ class TrackingFragment : Fragment(R.layout.fragment_tracking) {
                 dateTimepstamp,
                 averageSpeed,
                 distanceInMeter,
-                dateTimepstamp,
+                curTimeInMillis,
                 caloriesBurned
             )
             mainViewModel.insertRun(run)
