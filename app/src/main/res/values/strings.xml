@@ -8,4 +8,5 @@
         <item>Calories Burned</item>
     </string-array>
     <string name="google_maps_key">AIzaSyAgto-3GT29oYWa-QS64QnA9GhA4kQ3r_Y</string>
+    <string name="cancel_run">Cancel Run</string>
 </resources>
