@@ -17,6 +17,8 @@ class MainRepository @Inject constructor(val runDAO: RunDAO) {
 
     fun getAllRunByAverageSpeed() = runDAO.getAllRunsByAverageSpeed()
 
+    fun getAllRunByCaloriesBurned() = runDAO.getAllRunsByCaloriesBurned()
+
     fun getTotalAverageSpeed() = runDAO.getTotalAverageSpeed()
 
     fun getTotalTimeMillis() = runDAO.getTotalTimeMillis()
